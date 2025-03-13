@@ -1,0 +1,21 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches: 
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u risenx --password-stdin
+
+      - name: Build the Docker image
+        run: docker build -t risenx/gcr-cleaner:latest --push .
+
