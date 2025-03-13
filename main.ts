@@ -13,16 +13,13 @@ const GCLOUD_SERVICE_ACCOUNT_KEY = process.env.GCLOUD_SERVICE_ACCOUNT_KEY
 if (
   !GCLOUD_PROJECT_ID ||
   !GCLOUD_REGISTRY_REGION ||
-  !GCLOUD_REGISTRY_REPOSITORY ||
-  !GCLOUD_SERVICE_ACCOUNT_KEY
+  !GCLOUD_REGISTRY_REPOSITORY
 ) {
   throw new Error('Missing environment variables')
 }
 
-const AUTH_KEYS = JSON.parse(GCLOUD_SERVICE_ACCOUNT_KEY)
-
 const client = new ArtifactRegistryClient({
-  credentials: AUTH_KEYS,
+  credentials: GCLOUD_SERVICE_ACCOUNT_KEY ? JSON.parse(GCLOUD_SERVICE_ACCOUNT_KEY) : undefined,
 })
 
 const [images] = await client.listDockerImages({
