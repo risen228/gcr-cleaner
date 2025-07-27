@@ -1,7 +1,6 @@
 {
   "include": [
-    "main.ts",
-    ".eslintrc.cjs"
+    "main.ts"
   ],
   "exclude": [
     "**/node_modules",

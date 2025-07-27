@@ -46,14 +46,15 @@ type CleanupRule = RuleLatest | RuleSemver | RulePrefixTimestamp | RuleRecent
 
 function parseRules(): CleanupRule[] {
   const raw = process.env.CLEANUP_RULES_JSON
+
   if (!raw) {
-    // sensible defaults from the request
     return [
       { type: 'latest' },
-      { type: 'prefixTimestamp', prefix: 'dev-', count: 2 },
-      { type: 'semver', count: 2, includePrerelease: false },
+      { type: 'prefixTimestamp', prefix: 'dev-', keep: 2 },
+      { type: 'semver', keep: 2, includePrerelease: false },
     ]
   }
+
   try {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) throw new Error('Rules must be an array')
@@ -67,12 +68,18 @@ function parseRules(): CleanupRule[] {
 const RULES = parseRules()
 
 /** ============= GCLOUD CLIENT ============= */
-if (!GCLOUD_PROJECT_ID || !GCLOUD_REGISTRY_REGION || !GCLOUD_REGISTRY_REPOSITORY) {
+if (
+  !GCLOUD_PROJECT_ID ||
+  !GCLOUD_REGISTRY_REGION ||
+  !GCLOUD_REGISTRY_REPOSITORY
+) {
   throw new Error('Missing environment variables')
 }
 
 const client = new ArtifactRegistryClient({
-  credentials: GCLOUD_SERVICE_ACCOUNT_KEY ? JSON.parse(GCLOUD_SERVICE_ACCOUNT_KEY) : undefined,
+  credentials: GCLOUD_SERVICE_ACCOUNT_KEY
+    ? JSON.parse(GCLOUD_SERVICE_ACCOUNT_KEY)
+    : undefined,
 })
 
 /** ============= LOAD IMAGES ============= */
@@ -140,7 +147,7 @@ const byPath = entries.reduce<Record<string, Entry[]>>((acc, e) => {
 
 // Helper: mark top N by comparator
 function markTopN<T>(arr: T[], n: number, getEntry: (t: T) => Entry) {
-  for (let i = 0; i < Math.min(n, arr.length); i++) keep.add(getEntry(arr[i]))
+  for (let i = 0; i < Math.min(n, arr.length); i++) keep.add(getEntry(arr[i]!))
 }
 
 for (const rule of RULES) {
@@ -152,13 +159,14 @@ for (const rule of RULES) {
 
     case 'recent': {
       const threshold = Date.now() - rule.ms
-      for (const e of entries) if (e.uploadedAt.getTime() >= threshold) keep.add(e)
+      for (const e of entries)
+        if (e.uploadedAt.getTime() >= threshold) keep.add(e)
       break
     }
 
     case 'semver': {
       for (const path in byPath) {
-        const group = byPath[path]
+        const group = byPath[path]!
         const filtered = group
           .map((e) => {
             // pick the best semver tag of this entry under the filter
@@ -170,7 +178,7 @@ for (const rule of RULES) {
               if (rule.includePrerelease) return true
               return !semver.prerelease(t)
             })
-            if (!tags.length) return undefined
+            if (tags.length === 0) return null
             // choose highest semver in this entry
             const best = tags.sort(semver.rcompare)[0]
             return { entry: e, best }
@@ -184,10 +192,13 @@ for (const rule of RULES) {
     }
 
     case 'prefixTimestamp': {
-      const rx = new RegExp(rule.regex ?? `^${rule.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)$`)
+      const rx = new RegExp(
+        rule.regex ??
+          `^${rule.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)$`,
+      )
 
       for (const path in byPath) {
-        const group = byPath[path]
+        const group = byPath[path]!
         const devs: { entry: Entry; ts: number }[] = []
 
         for (const e of group) {
@@ -216,8 +227,7 @@ for (const rule of RULES) {
     }
 
     default:
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      console.warn('Unknown rule:', (rule as any).type)
+      console.warn('Unknown rule:', rule)
   }
 }
 
