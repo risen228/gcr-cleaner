@@ -17,6 +17,7 @@ const GCLOUD_PROJECT_ID = process.env.GCLOUD_PROJECT_ID
 const GCLOUD_REGISTRY_REGION = process.env.GCLOUD_REGISTRY_REGION
 const GCLOUD_REGISTRY_REPOSITORY = process.env.GCLOUD_REGISTRY_REPOSITORY
 const GCLOUD_SERVICE_ACCOUNT_KEY = process.env.GCLOUD_SERVICE_ACCOUNT_KEY
+const DRY_RUN = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true'
 
 // Rule schema ---------------------------------------------------------------
 // Minimalistic runtime typing w/out bringing zod. Adjust if needed.
@@ -253,6 +254,12 @@ for (const entry of entries) {
   if (keep.has(entry)) continue
 
   triesCount += 1
+
+  if (DRY_RUN) {
+    console.info('[DRY-RUN] Would delete', entry.url)
+    continue
+  }
+
   try {
     await client.deleteVersion({
       name: getVersionNameFromUrl(entry.url),
@@ -267,7 +274,7 @@ for (const entry of entries) {
   await sleep((60 / REQUESTS_PER_MINUTE) * 1000)
 }
 
-if (triesCount > 0 && successCount === 0) {
+if (!DRY_RUN && triesCount > 0 && successCount === 0) {
   console.error('No images deleted successfully')
   process.exit(1)
 }
