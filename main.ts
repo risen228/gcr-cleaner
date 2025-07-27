@@ -116,7 +116,9 @@ for (const tag of images) {
   const uploadedAt = new Date(Number(tag.uploadTime.seconds) * 1000)
   const isLatest = tag.tags.includes('latest')
 
-  const semverTags = tag.tags.filter((t) => Boolean(semver.valid(t)))
+  const semverTags = tag.tags.filter((t) =>
+    Boolean(semver.valid(semver.clean(t))),
+  )
 
   entries.push({
     path,
@@ -172,16 +174,20 @@ for (const rule of RULES) {
           .map((e) => {
             // pick the best semver tag of this entry under the filter
             const tags = e.semverTags.filter((t) => {
+              const cleanTag = semver.clean(t)
+              if (!cleanTag) return false
               if (rule.prerelease != null) {
-                const p = semver.prerelease(t)
+                const p = semver.prerelease(cleanTag)
                 return Array.isArray(p) && p[0] === rule.prerelease
               }
               if (rule.includePrerelease) return true
-              return !semver.prerelease(t)
+              return !semver.prerelease(cleanTag)
             })
             if (tags.length === 0) return null
             // choose highest semver in this entry
-            const best = tags.sort(semver.rcompare)[0]
+            const best = tags.sort((a, b) =>
+              semver.rcompare(semver.clean(a)!, semver.clean(b)!),
+            )[0]
             return { entry: e, best }
           })
           .filter(Boolean) as { entry: Entry; best: string }[]
